@@ -1,5 +1,6 @@
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rfd::FileDialog;
+use std::collections::HashMap;
 use std::env::current_dir;
 
 mod data;
@@ -54,7 +55,15 @@ fn main() {
     println!("ppq = {}", ticks_per_beat);
 
     // now get the notes
-    let mut was_pressed = false;
+    let mut notes_pressed = HashMap::new();
+    notes_pressed.insert(60u8, false);
+    notes_pressed.insert(62, false);
+    notes_pressed.insert(64, false);
+    notes_pressed.insert(65, false);
+    notes_pressed.insert(72, false);
+    notes_pressed.insert(74, false);
+    notes_pressed.insert(76, false);
+    notes_pressed.insert(77, false);
     for &event in &midi.tracks[1] {
         let message = match event.kind {
             TrackEventKind::Midi { message, .. } => message,
@@ -63,17 +72,26 @@ fn main() {
 
         let (note, pressed) = match message {
             MidiMessage::NoteOn { key, vel } if vel == 0 => (key.as_int(), false),
-            MidiMessage::NoteOff { key, vel } => (key.as_int(), false),
+            MidiMessage::NoteOff { key, .. } => (key.as_int(), false),
 
-            MidiMessage::NoteOn { key, vel } => (key.as_int(), true),
+            MidiMessage::NoteOn { key, .. } => (key.as_int(), true),
 
             _ => continue,
         };
 
+        let was_pressed = match notes_pressed.get_mut(&note) {
+            Some(was_pressed) => was_pressed,
+            None => {
+                // .unwrap_or_else(|| panic!("invalid note {}", note))
+                eprintln!("invalid note {}", note);
+                continue;
+            }
+        };
         assert_ne!(
-            pressed, was_pressed,
-            "note on/off state should alternate every event"
+            pressed, *was_pressed,
+            "note on must be followed by note off and vice versa for each note"
         );
-        was_pressed = pressed
+
+        *was_pressed = pressed;
     }
 }
