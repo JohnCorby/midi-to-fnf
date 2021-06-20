@@ -10,3 +10,5 @@ midly = { version = "*", features = ["strict"] }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 rfd = "*"
+num-traits = "*"
+num-derive = "*"
