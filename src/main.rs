@@ -27,13 +27,6 @@ fn main() {
         }
     }
 
-    assert_eq!(
-        midi.header.format,
-        Format::Parallel,
-        "midi file should be parallel format"
-    );
-    assert_eq!(midi.tracks.len(), 2, "midi file should have 2 tracks");
-
     // get timing info
     let ticks_per_beat = match midi.header.timing {
         Timing::Metrical(ticks_per_beat) => ticks_per_beat,
@@ -54,6 +47,23 @@ fn main() {
     println!("bpm = {}", beats_per_min);
     println!("ppq = {}", ticks_per_beat);
 
+    let notes_track = match midi.header.format {
+        // ableton uses this
+        Format::SingleTrack => &midi.tracks[0],
+
+        // fl studio uses this
+        Format::Parallel => {
+            assert_eq!(
+                midi.tracks.len(),
+                2,
+                "midi file in parallel format should have 2 tracks"
+            );
+            &midi.tracks[1]
+        }
+
+        _ => unimplemented!(),
+    };
+
     // now get the notes
     let mut notes_pressed = HashMap::new();
     notes_pressed.insert(60u8, false);
@@ -64,7 +74,7 @@ fn main() {
     notes_pressed.insert(74, false);
     notes_pressed.insert(76, false);
     notes_pressed.insert(77, false);
-    for &event in &midi.tracks[1] {
+    for &event in notes_track {
         let message = match event.kind {
             TrackEventKind::Midi { message, .. } => message,
             _ => continue,
