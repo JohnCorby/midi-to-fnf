@@ -2,6 +2,7 @@ use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
 use std::env::current_dir;
+use std::io::stdin;
 
 mod data;
 mod util;
@@ -32,18 +33,22 @@ fn main() {
         Timing::Metrical(ticks_per_beat) => ticks_per_beat,
         Timing::Timecode(_, _) => unimplemented!("time code timing"),
     };
-    let beats_per_min = {
-        let micros_per_beat = midi.tracks[0]
-            .iter()
-            .find_map(|event| match event.kind {
-                TrackEventKind::Meta(MetaMessage::Tempo(micros_per_beat)) => {
-                    Some(micros_per_beat.as_int())
-                }
-                _ => None,
-            })
-            .expect("couldn't find tempo in track 0");
-        (60e6 / micros_per_beat as f64) as u16
-    };
+    let beats_per_min = midi.tracks[0]
+        .iter()
+        .find_map(|event| match event.kind {
+            TrackEventKind::Meta(MetaMessage::Tempo(micros_per_beat)) => {
+                Some(micros_per_beat.as_int())
+            }
+            _ => None,
+        })
+        .map(|micros_per_beat| (60e6 / micros_per_beat as f64) as u16)
+        .unwrap_or_else(|| {
+            println!("couldn't find bpm in track 0");
+            println!("please input it manually");
+            let mut line = String::new();
+            stdin().read_line(&mut line).unwrap();
+            line.trim().parse().expect("could not parse bpm")
+        });
     println!("bpm = {}", beats_per_min);
     println!("ppq = {}", ticks_per_beat);
 
