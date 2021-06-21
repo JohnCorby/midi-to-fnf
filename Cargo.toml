@@ -8,5 +8,6 @@ edition = "2018"
 [dependencies]
 midly = { version = "*", features = ["strict"] }
 serde = { version = "*", features = ["derive"] }
+serde_tuple = '*'
 serde_json = "*"
 rfd = "*"

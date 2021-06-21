@@ -1,3 +1,4 @@
+use crate::util::ticks_to_millis;
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
@@ -32,8 +33,9 @@ fn main() {
     let ticks_per_beat = match midi.header.timing {
         Timing::Metrical(ticks_per_beat) => ticks_per_beat,
         Timing::Timecode(_, _) => unimplemented!("time code timing"),
-    };
-    let beats_per_min = midi.tracks[0]
+    }
+    .as_int();
+    let bpm = midi.tracks[0]
         .iter()
         .find_map(|event| match event.kind {
             TrackEventKind::Meta(MetaMessage::Tempo(micros_per_beat)) => {
@@ -49,7 +51,7 @@ fn main() {
             stdin().read_line(&mut line).unwrap();
             line.trim().parse().expect("could not parse bpm")
         });
-    println!("bpm = {}", beats_per_min);
+    println!("bpm = {}", bpm);
     println!("ppq = {}", ticks_per_beat);
 
     let notes_track = match midi.header.format {
@@ -107,6 +109,15 @@ fn main() {
             "note on must be followed by note off and vice versa for each note"
         );
 
+        let delta = ticks_to_millis(event.delta.as_int(), ticks_per_beat, bpm);
+
         *was_pressed = pressed;
+    }
+    for (note, pressed) in notes_pressed {
+        assert!(
+            !pressed,
+            "note {} should never got a final note off event",
+            note
+        )
     }
 }

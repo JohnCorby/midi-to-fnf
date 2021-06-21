@@ -24,6 +24,7 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-7f23b254bef65159/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-traits-c05ebb0374b03131/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-98acb7be1b3137d2/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/winapi-3bc60d63e675cb19/out" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/MIDI2FNF/ex" />
     </content>

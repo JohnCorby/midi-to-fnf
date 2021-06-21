@@ -1,46 +1,54 @@
 //! holds vanilla and kade engine song json formats
 //!
-//! actually, ill just use kade engine format for now and hope it works on vanilla as well :P
+//! actually, ill just use vanilla for now
+
+use serde::*;
+use serde_tuple::*;
 
 #[allow(non_snake_case)]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct Song {
     song: String,
     notes: Vec<Section>,
-    player1: String,
-    player2: String,
-    stage: String,
-    /// im assuming this is for if there neesd to be a voices.ogg?
-    needsVoices: bool,
-    /// todo wtf is this
-    validScore: bool,
     bpm: u16,
-    speed: f32,
+    /// if there is a voice track
+    needsVoices: bool,
+    speed: f64,
+
+    /// ex: bf
+    player1: String,
+    /// ex: dad
+    player2: String,
+    /// always true
+    validScore: bool,
 }
 
 #[allow(non_snake_case)]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct Section {
     sectionNotes: Vec<Note>,
-    /// todo wtf is a step?
+    /// steps are those grid squares on the chart menu
+    /// there are 4 steps per beat
+    ///
+    /// always 16
     lengthInSteps: u16,
-    mustHitSection: bool,
-    /// todo wtf is this
-    altAnim: bool,
-    /// todo wtf is this, always 0?
+    /// always 0
     typeOfSection: u8,
-    /// bruh
+    /// if true: player1 is notes 0-3 and player2 is 4-7.
+    /// if false, the opposite.
+    /// also controls camera (whoever has notes 0-3 is focused on)
+    mustHitSection: bool,
     bpm: u16,
     changeBPM: bool,
+    altAnim: bool,
 }
 
-/// todo this is represented as an array, how do we do that????
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize_tuple)]
 pub struct Note {
-    /// todo what unit? it's not seconds
-    time: f32,
-    /// 0-3 representing arrows
+    /// unit = ms
+    time: f64,
+    /// 0-7 representing arrows
     note: u8,
-    /// todo what unit?
-    length: u16,
+    /// unit = ms
+    length: f64,
 }
