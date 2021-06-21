@@ -14,7 +14,7 @@ pub fn steps_to_millis(steps: f64, bpm: u16) -> f64 {
 /// get line input
 pub fn prompt(prompt: &str, default: Option<&str>) -> String {
     if let Some(default) = default {
-        println!("{}\n(leave blank for default = `{}`)", prompt, default)
+        println!("{}\n(leave blank for default = \"{}\")", prompt, default)
     } else {
         println!("{}", prompt)
     }

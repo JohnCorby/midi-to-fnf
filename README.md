@@ -11,5 +11,7 @@ it has a few differences, though.
 just follow the directions given on the command line window.
 
 your midi file should be only 1 channel, where C5-D#5 is player1 and C6-D#6 is player2.
-if you want a trail on a note, just make it any length. otherwise, make the note as short as possible.
+if you want a trail on a note, just make it any length. otherwise, make the note no more than the note length threshold
+(cuts off note trails that are short enough).
+the camera will focus on whoever has the most notes for the section.
 tested in fl studio and ableton.

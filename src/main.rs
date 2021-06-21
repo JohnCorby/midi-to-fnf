@@ -65,8 +65,8 @@ fn main() {
             .parse()
             .expect("could not parse bpm")
         });
-    println!("bpm = {}", bpm);
-    println!("ppq = {}", ticks_per_beat);
+    // println!("bpm = {}", bpm);
+    // println!("ppq = {}", ticks_per_beat);
 
     let notes = get_chart_notes(notes_track, ticks_per_beat);
 
@@ -89,7 +89,7 @@ fn main() {
 
         note.time = util::steps_to_millis(note.time, bpm);
         note.length = util::steps_to_millis(note.length, bpm);
-        println!("{:?}", note);
+        // println!("{:?}", note);
         sections.last_mut().unwrap().sectionNotes.push(note);
     }
 
