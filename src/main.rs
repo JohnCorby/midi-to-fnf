@@ -1,11 +1,11 @@
 use crate::util::ticks_to_millis;
-use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
+use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
 use std::env::current_dir;
 use std::io::stdin;
 
-mod data;
+mod chart;
 mod util;
 
 fn main() {
@@ -63,25 +63,42 @@ fn main() {
             assert_eq!(
                 midi.tracks.len(),
                 2,
-                "midi file in parallel format should have 2 tracks"
+                "midi file in parallel format must have 2 tracks"
             );
             &midi.tracks[1]
         }
 
-        _ => unimplemented!(),
+        Format::Sequential => unimplemented!("sequential format not supported"),
     };
 
+    let chart_notes = get_chart_notes(notes_track, ticks_per_beat, bpm);
+    // debugging lol
+    for chart_note in chart_notes {
+        println!("{:?}", chart_note);
+    }
+}
+
+/// turn midi events into chart notes
+fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) -> Vec<chart::Note> {
     // now get the notes
-    let mut notes_pressed = HashMap::new();
-    notes_pressed.insert(60u8, false);
-    notes_pressed.insert(62, false);
-    notes_pressed.insert(64, false);
-    notes_pressed.insert(65, false);
-    notes_pressed.insert(72, false);
-    notes_pressed.insert(74, false);
-    notes_pressed.insert(76, false);
-    notes_pressed.insert(77, false);
+    let mut chart_notes = vec![];
+
+    let mut notes_state = HashMap::new();
+    let init_state = (false, 0.);
+    notes_state.insert(60, init_state);
+    notes_state.insert(62, init_state);
+    notes_state.insert(64, init_state);
+    notes_state.insert(65, init_state);
+    notes_state.insert(72, init_state);
+    notes_state.insert(74, init_state);
+    notes_state.insert(76, init_state);
+    notes_state.insert(77, init_state);
+
+    let mut time = 0.;
+
     for &event in notes_track {
+        time += ticks_to_millis(event.delta.as_int(), ticks_per_beat, bpm);
+
         let message = match event.kind {
             TrackEventKind::Midi { message, .. } => message,
             _ => continue,
@@ -96,11 +113,11 @@ fn main() {
             _ => continue,
         };
 
-        let was_pressed = match notes_pressed.get_mut(&note) {
-            Some(was_pressed) => was_pressed,
+        let (was_pressed, last_time) = match notes_state.get_mut(&note) {
+            Some(state) => state,
             None => {
                 // .unwrap_or_else(|| panic!("invalid note {}", note))
-                eprintln!("invalid note {}", note);
+                eprintln!("ignoring invalid note {}", note);
                 continue;
             }
         };
@@ -109,15 +126,17 @@ fn main() {
             "note on must be followed by note off and vice versa for each note"
         );
 
-        let delta = ticks_to_millis(event.delta.as_int(), ticks_per_beat, bpm);
+        if !pressed {
+            let length = time - *last_time;
+            chart_notes.push(chart::Note { time, note, length })
+        }
 
         *was_pressed = pressed;
+        *last_time = time;
     }
-    for (note, pressed) in notes_pressed {
-        assert!(
-            !pressed,
-            "note {} should never got a final note off event",
-            note
-        )
+    for (note, (pressed, _)) in notes_state {
+        assert!(!pressed, "note {} never got a final note off event", note)
     }
+
+    chart_notes
 }
