@@ -1,7 +1,6 @@
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
-use std::io::stdin;
 
 mod chart;
 mod util;
@@ -59,11 +58,12 @@ fn main() {
         })
         .map(|micros_per_beat| (60e6 / micros_per_beat as f64) as u16)
         .unwrap_or_else(|| {
-            println!("couldn't find bpm in track 0");
-            println!("please input it manually");
-            let mut line = String::new();
-            stdin().read_line(&mut line).unwrap();
-            line.trim().parse().expect("could not parse bpm")
+            util::prompt(
+                "couldn't find bpm in track 0\nplease input it manually",
+                None,
+            )
+            .parse()
+            .expect("could not parse bpm")
         });
     println!("bpm = {}", bpm);
     println!("ppq = {}", ticks_per_beat);
@@ -94,11 +94,13 @@ fn main() {
     }
 
     // make the song and save it
-    let song = "Bopeebo".to_string();
-    let speed = 3.;
-    let player1 = "bf".to_string();
-    let player2 = "dad".to_string();
-    let stage = "stage".to_string();
+    let song = util::prompt("provide a song name", Some("pico"));
+    let speed = util::prompt("provide song speed", Some("3"))
+        .parse()
+        .expect("could not parse song speed");
+    let player1 = util::prompt("provide player 1 character", Some("bf"));
+    let player2 = util::prompt("provide player 2 character", Some("pico"));
+    let stage = util::prompt("provide stage", Some("philly"));
     let song = chart::Song {
         song,
         notes: sections,
@@ -111,7 +113,6 @@ fn main() {
         stage,
     };
     let json = serde_json::json!({ "song": song });
-    // debugging lol
     println!("{:#}", json);
 
     println!("provide the json file to save");
@@ -124,20 +125,24 @@ fn main() {
 
 /// turn midi events into chart notes
 fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16) -> Vec<chart::Note> {
-    let len_beats_threshold = 0.5;
+    let len_beats_threshold = util::prompt(
+        "provide note length threshold in beats\nnotes shorter than this will have no trail",
+        Some("0.5"),
+    )
+    .parse::<f64>()
+    .expect("could not parse note length threshold");
 
     let mut chart_notes = vec![];
 
     let mut notes_state = HashMap::new();
-    let init_state = (false, 0.);
-    notes_state.insert(60, (0, init_state));
-    notes_state.insert(61, (1, init_state));
-    notes_state.insert(62, (2, init_state));
-    notes_state.insert(63, (3, init_state));
-    notes_state.insert(72, (4, init_state));
-    notes_state.insert(73, (5, init_state));
-    notes_state.insert(74, (6, init_state));
-    notes_state.insert(75, (7, init_state));
+    notes_state.insert(60, (0, false, 0.));
+    notes_state.insert(61, (1, false, 0.));
+    notes_state.insert(62, (2, false, 0.));
+    notes_state.insert(63, (3, false, 0.));
+    notes_state.insert(72, (4, false, 0.));
+    notes_state.insert(73, (5, false, 0.));
+    notes_state.insert(74, (6, false, 0.));
+    notes_state.insert(75, (7, false, 0.));
 
     let mut time = 0.;
 
@@ -158,14 +163,9 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16) -> Vec<chart
             _ => continue,
         };
 
-        let (note, (was_pressed, last_time)) = match notes_state.get_mut(&note) {
-            Some(state) => state,
-            None => {
-                // .unwrap_or_else(|| panic!("invalid note {}", note))
-                eprintln!("ignoring invalid note {}", note);
-                continue;
-            }
-        };
+        let (note, was_pressed, last_time) = notes_state
+            .get_mut(&note)
+            .unwrap_or_else(|| panic!("invalid note {}", note));
         assert_ne!(
             pressed, *was_pressed,
             "note on must be followed by note off and vice versa for each note"
@@ -187,7 +187,7 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16) -> Vec<chart
         *was_pressed = pressed;
         *last_time = time;
     }
-    for (note, (_, (pressed, _))) in notes_state {
+    for (note, (_, pressed, _)) in notes_state {
         assert!(!pressed, "note {} never got a final note off event", note)
     }
 
