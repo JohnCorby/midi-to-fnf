@@ -2,7 +2,6 @@ use crate::util::ticks_to_millis;
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
-use std::env::current_dir;
 use std::io::stdin;
 
 mod chart;
@@ -13,7 +12,6 @@ fn main() {
     println!("select midi file you want to convert");
     let path = FileDialog::new()
         .add_filter("midi", &["mid"])
-        .set_directory(current_dir().unwrap())
         .pick_file()
         .expect("no midi file picked");
     let data = std::fs::read(path).expect("error reading midi file");
@@ -89,11 +87,7 @@ fn main() {
             let section = chart::Section {
                 sectionNotes: section_notes.clone(),
                 lengthInSteps: 16,
-                typeOfSection: 0,
                 mustHitSection: true,
-                bpm,
-                changeBPM: false,
-                altAnim: false,
             };
             sections.push(section);
             section_notes.clear();
@@ -106,7 +100,7 @@ fn main() {
 
     // make the song and save it
     let song = chart::Song {
-        song: "bruh moment".to_string(),
+        song: "Bopeebo".to_string(),
         notes: sections,
         bpm,
         needsVoices: true,
@@ -114,7 +108,6 @@ fn main() {
 
         player1: "bf".to_string(),
         player2: "dad".to_string(),
-        validScore: true,
     };
     let json = serde_json::json!({ "song": song });
     // debugging lol
@@ -123,7 +116,6 @@ fn main() {
     println!("provide the json file to save");
     let path = FileDialog::new()
         .add_filter("json", &["json"])
-        .set_directory(current_dir().unwrap())
         .save_file()
         .expect("no json file given");
     std::fs::write(path, format!("{:#}", json)).expect("error writing to json file");
