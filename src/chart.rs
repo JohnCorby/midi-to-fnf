@@ -6,7 +6,7 @@ use serde::*;
 use serde_tuple::*;
 
 #[allow(non_snake_case)]
-#[derive(Debug, Serialize)]
+#[derive(Serialize, Debug, Clone)]
 pub struct Song {
     pub song: String,
     pub notes: Vec<Section>,
@@ -24,7 +24,7 @@ pub struct Song {
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug, Serialize)]
+#[derive(Serialize, Debug, Clone)]
 pub struct Section {
     pub sectionNotes: Vec<Note>,
     /// steps are those grid squares on the chart menu
@@ -43,7 +43,7 @@ pub struct Section {
     pub altAnim: bool,
 }
 
-#[derive(Debug, Serialize_tuple)]
+#[derive(Serialize_tuple, Debug, Copy, Clone)]
 pub struct Note {
     /// unit = ms
     pub time: f64,

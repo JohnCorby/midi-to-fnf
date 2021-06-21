@@ -71,11 +71,53 @@ fn main() {
         Format::Sequential => unimplemented!("sequential format not supported"),
     };
 
-    let chart_notes = get_chart_notes(notes_track, ticks_per_beat, bpm);
+    let notes = get_chart_notes(notes_track, ticks_per_beat, bpm);
     // debugging lol
-    for chart_note in chart_notes {
-        println!("{:?}", chart_note);
+    for &note in &notes {
+        println!("{:?}", note);
     }
+
+    // put the notes into sections
+    let mut sections = vec![];
+    let mut section_notes = Vec::with_capacity(16);
+    let mut last_step = 0.;
+    for note in notes {
+        let step = util::millis_to_steps(note.time, bpm) % 16.;
+
+        // step wrapped around, so new section
+        if step < last_step {
+            let section = chart::Section {
+                sectionNotes: section_notes.clone(),
+                lengthInSteps: 16,
+                typeOfSection: 0,
+                mustHitSection: true,
+                bpm,
+                changeBPM: false,
+                altAnim: false,
+            };
+            sections.push(section);
+            section_notes.clear();
+        }
+
+        section_notes.push(note);
+
+        last_step = step;
+    }
+
+    // make the song and save it
+    let song = chart::Song {
+        song: "".to_string(),
+        notes: sections,
+        bpm,
+        needsVoices: true,
+        speed: 1.0,
+
+        player1: "bf".to_string(),
+        player2: "dad".to_string(),
+        validScore: true,
+    };
+    let json = serde_json::json!({ "song": song });
+    dbg!(json);
 }
 
 /// turn midi events into chart notes
@@ -85,14 +127,14 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) ->
 
     let mut notes_state = HashMap::new();
     let init_state = (false, 0.);
-    notes_state.insert(60, init_state);
-    notes_state.insert(62, init_state);
-    notes_state.insert(64, init_state);
-    notes_state.insert(65, init_state);
-    notes_state.insert(72, init_state);
-    notes_state.insert(74, init_state);
-    notes_state.insert(76, init_state);
-    notes_state.insert(77, init_state);
+    notes_state.insert(60, (0, init_state));
+    notes_state.insert(62, (1, init_state));
+    notes_state.insert(64, (2, init_state));
+    notes_state.insert(65, (3, init_state));
+    notes_state.insert(72, (4, init_state));
+    notes_state.insert(74, (5, init_state));
+    notes_state.insert(76, (6, init_state));
+    notes_state.insert(77, (7, init_state));
 
     let mut time = 0.;
 
@@ -113,7 +155,7 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) ->
             _ => continue,
         };
 
-        let (was_pressed, last_time) = match notes_state.get_mut(&note) {
+        let (note, (was_pressed, last_time)) = match notes_state.get_mut(&note) {
             Some(state) => state,
             None => {
                 // .unwrap_or_else(|| panic!("invalid note {}", note))
@@ -127,6 +169,7 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) ->
         );
 
         if !pressed {
+            let note = *note;
             let length = time - *last_time;
             chart_notes.push(chart::Note { time, note, length })
         }
@@ -134,7 +177,7 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) ->
         *was_pressed = pressed;
         *last_time = time;
     }
-    for (note, (pressed, _)) in notes_state {
+    for (note, (_, (pressed, _))) in notes_state {
         assert!(!pressed, "note {} never got a final note off event", note)
     }
 
