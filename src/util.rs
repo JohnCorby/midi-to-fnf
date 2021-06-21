@@ -27,3 +27,19 @@ pub fn prompt(prompt: &str, default: Option<&str>) -> String {
         line
     }
 }
+
+pub fn init_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let message = if let Some(message) = info.message() {
+            message.to_string()
+        } else if let Some(payload) = info.payload().downcast_ref::<&str>() {
+            payload.to_string()
+        } else {
+            "cannot get panic message".to_string()
+        };
+
+        eprintln!("Error: {}", message);
+        eprintln!("press enter to exit");
+        stdin().read_line(&mut String::new()).unwrap();
+    }))
+}

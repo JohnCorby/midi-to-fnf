@@ -1,3 +1,5 @@
+#![feature(panic_info_message)]
+
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
@@ -6,6 +8,8 @@ mod chart;
 mod util;
 
 fn main() {
+    util::init_panic_hook();
+
     // get midi
     println!("select midi file you want to convert");
     let path = FileDialog::new()
