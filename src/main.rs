@@ -1,4 +1,3 @@
-use crate::util::ticks_to_millis;
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use rfd::FileDialog;
 use std::collections::HashMap;
@@ -18,14 +17,31 @@ fn main() {
     let midi = Smf::parse(&data).expect("error parsing midi file");
 
     // debugging lol
-    println!("---------HEADER----------");
-    println!("{:?}", midi.header);
-    for (i, track) in midi.tracks.iter().enumerate() {
-        println!("---------track {}----------", i);
-        for event in track {
-            println!("{:?}", event);
+    // println!("---------HEADER----------");
+    // println!("{:?}", midi.header);
+    // for (i, track) in midi.tracks.iter().enumerate() {
+    //     println!("---------track {}----------", i);
+    //     for event in track {
+    //         println!("{:?}", event);
+    //     }
+    // }
+
+    let notes_track = match midi.header.format {
+        // ableton uses this
+        Format::SingleTrack => &midi.tracks[0],
+
+        // fl studio uses this
+        Format::Parallel => {
+            assert_eq!(
+                midi.tracks.len(),
+                2,
+                "midi file in parallel format must have 2 tracks"
+            );
+            &midi.tracks[1]
         }
-    }
+
+        Format::Sequential => unimplemented!("sequential format not supported"),
+    };
 
     // get timing info
     let ticks_per_beat = match midi.header.timing {
@@ -52,62 +68,47 @@ fn main() {
     println!("bpm = {}", bpm);
     println!("ppq = {}", ticks_per_beat);
 
-    let notes_track = match midi.header.format {
-        // ableton uses this
-        Format::SingleTrack => &midi.tracks[0],
-
-        // fl studio uses this
-        Format::Parallel => {
-            assert_eq!(
-                midi.tracks.len(),
-                2,
-                "midi file in parallel format must have 2 tracks"
-            );
-            &midi.tracks[1]
-        }
-
-        Format::Sequential => unimplemented!("sequential format not supported"),
-    };
-
-    let notes = get_chart_notes(notes_track, ticks_per_beat, bpm);
-    // debugging lol
-    for &note in &notes {
-        println!("{:?}", note);
-    }
+    let notes = get_chart_notes(notes_track, ticks_per_beat);
 
     // put the notes into sections
-    let mut sections = vec![];
-    let mut section_notes = Vec::with_capacity(16);
-    let mut last_step = 0.;
-    for note in notes {
-        let step = util::millis_to_steps(note.time, bpm) % 16.;
-
-        // step wrapped around, so new section
-        if step < last_step {
-            let section = chart::Section {
-                sectionNotes: section_notes.clone(),
-                lengthInSteps: 16,
+    const SECTION_LEN: u16 = 16;
+    let mut sections = vec![chart::Section {
+        sectionNotes: Vec::with_capacity(SECTION_LEN as usize),
+        lengthInSteps: SECTION_LEN,
+        mustHitSection: true,
+    }];
+    for mut note in notes {
+        // we are past the section's range, get us back into it
+        while note.time >= (sections.len() as f64 + 1.) * SECTION_LEN as f64 {
+            sections.push(chart::Section {
+                sectionNotes: Vec::with_capacity(SECTION_LEN as usize),
+                lengthInSteps: SECTION_LEN,
                 mustHitSection: true,
-            };
-            sections.push(section);
-            section_notes.clear();
+            })
         }
 
-        section_notes.push(note);
-
-        last_step = step;
+        note.time = util::steps_to_millis(note.time, bpm);
+        note.length = util::steps_to_millis(note.length, bpm);
+        println!("{:?}", note);
+        sections.last_mut().unwrap().sectionNotes.push(note);
     }
 
     // make the song and save it
+    let song = "Bopeebo".to_string();
+    let speed = 3.;
+    let player1 = "bf".to_string();
+    let player2 = "dad".to_string();
+    let stage = "stage".to_string();
     let song = chart::Song {
-        song: "Bopeebo".to_string(),
+        song,
         notes: sections,
         bpm,
         needsVoices: true,
-        speed: 1.,
+        speed,
 
-        player1: "bf".to_string(),
-        player2: "dad".to_string(),
+        player1,
+        player2,
+        stage,
     };
     let json = serde_json::json!({ "song": song });
     // debugging lol
@@ -122,25 +123,26 @@ fn main() {
 }
 
 /// turn midi events into chart notes
-fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) -> Vec<chart::Note> {
-    // now get the notes
+fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16) -> Vec<chart::Note> {
+    let len_beats_threshold = 0.5;
+
     let mut chart_notes = vec![];
 
     let mut notes_state = HashMap::new();
     let init_state = (false, 0.);
     notes_state.insert(60, (0, init_state));
-    notes_state.insert(62, (1, init_state));
-    notes_state.insert(64, (2, init_state));
-    notes_state.insert(65, (3, init_state));
+    notes_state.insert(61, (1, init_state));
+    notes_state.insert(62, (2, init_state));
+    notes_state.insert(63, (3, init_state));
     notes_state.insert(72, (4, init_state));
-    notes_state.insert(74, (5, init_state));
-    notes_state.insert(76, (6, init_state));
-    notes_state.insert(77, (7, init_state));
+    notes_state.insert(73, (5, init_state));
+    notes_state.insert(74, (6, init_state));
+    notes_state.insert(75, (7, init_state));
 
     let mut time = 0.;
 
     for &event in notes_track {
-        time += ticks_to_millis(event.delta.as_int(), ticks_per_beat, bpm);
+        time += util::ticks_to_steps(event.delta.as_int(), ticks_per_beat);
 
         let message = match event.kind {
             TrackEventKind::Midi { message, .. } => message,
@@ -170,9 +172,16 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16, bpm: u16) ->
         );
 
         if !pressed {
-            let note = *note;
-            let length = time - *last_time;
-            chart_notes.push(chart::Note { time, note, length })
+            let mut note = chart::Note {
+                time: *last_time,
+                note: *note,
+                length: time - *last_time,
+            };
+            // truncate short len notes to 0
+            if note.length <= len_beats_threshold * 4. {
+                note.length = 0.
+            }
+            chart_notes.push(note)
         }
 
         *was_pressed = pressed;

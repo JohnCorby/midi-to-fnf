@@ -1,6 +1,4 @@
-//! holds vanilla and kade engine song json formats
-//!
-//! actually, ill just use vanilla for now
+//! holds chart format (kade engine but it should also work for vanilla)
 
 use serde::*;
 use serde_tuple::*;
@@ -19,8 +17,8 @@ pub struct Song {
     pub player1: String,
     /// ex: dad
     pub player2: String,
-    // /// set to true in code
-    // pub validScore: bool,
+    /// ex: stage
+    pub stage: String,
 }
 
 #[allow(non_snake_case)]
@@ -32,15 +30,10 @@ pub struct Section {
     ///
     /// always 16
     pub lengthInSteps: u16,
-    // /// always 0
-    // pub typeOfSection: u8,
     /// if true: player1 is notes 0-3 and player2 is 4-7.
     /// if false, the opposite.
     /// also controls camera (whoever has notes 0-3 is focused on)
     pub mustHitSection: bool,
-    // pub bpm: u16,
-    // pub changeBPM: bool,
-    // pub altAnim: bool,
 }
 
 #[derive(Serialize_tuple, Debug, Copy, Clone)]
