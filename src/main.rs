@@ -106,18 +106,27 @@ fn main() {
 
     // make the song and save it
     let song = chart::Song {
-        song: "".to_string(),
+        song: "bruh moment".to_string(),
         notes: sections,
         bpm,
         needsVoices: true,
-        speed: 1.0,
+        speed: 1.,
 
         player1: "bf".to_string(),
         player2: "dad".to_string(),
         validScore: true,
     };
     let json = serde_json::json!({ "song": song });
-    dbg!(json);
+    // debugging lol
+    println!("{:#}", json);
+
+    println!("provide the json file to save");
+    let path = FileDialog::new()
+        .add_filter("json", &["json"])
+        .set_directory(current_dir().unwrap())
+        .save_file()
+        .expect("no json file given");
+    std::fs::write(path, format!("{:#}", json)).expect("error writing to json file");
 }
 
 /// turn midi events into chart notes
