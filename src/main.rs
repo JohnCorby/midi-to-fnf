@@ -75,15 +75,15 @@ fn main() {
     let mut sections = vec![chart::Section {
         sectionNotes: Vec::with_capacity(SECTION_LEN as usize),
         lengthInSteps: SECTION_LEN,
-        mustHitSection: true,
+        mustHitSection: false,
     }];
     for mut note in notes {
-        // we are past the section's range, get us back into it
-        while note.time >= (sections.len() as f64 + 1.) * SECTION_LEN as f64 {
+        // we are past the section's range, make new sections until we're not
+        while note.time >= sections.len() as f64 * SECTION_LEN as f64 {
             sections.push(chart::Section {
                 sectionNotes: Vec::with_capacity(SECTION_LEN as usize),
                 lengthInSteps: SECTION_LEN,
-                mustHitSection: true,
+                mustHitSection: false,
             })
         }
 
@@ -91,6 +91,32 @@ fn main() {
         note.length = util::steps_to_millis(note.length, bpm);
         println!("{:?}", note);
         sections.last_mut().unwrap().sectionNotes.push(note);
+    }
+
+    // whoever has more notes gets the camera focused on them
+    for section in &mut sections {
+        if section.sectionNotes.is_empty() {
+            continue;
+        }
+        let mut player1 = 0;
+        let mut player2 = 0;
+        for &note in &section.sectionNotes {
+            match note.note {
+                4..=7 => player1 += 1,
+                0..=3 => player2 += 1,
+                _ => unreachable!(),
+            }
+        }
+        if player1 >= player2 {
+            section.mustHitSection = true;
+            for note in &mut section.sectionNotes {
+                note.note = match note.note {
+                    4..=7 => note.note - 4,
+                    0..=3 => note.note + 4,
+                    _ => unreachable!(),
+                }
+            }
+        }
     }
 
     // make the song and save it
@@ -113,7 +139,6 @@ fn main() {
         stage,
     };
     let json = serde_json::json!({ "song": song });
-    println!("{:#}", json);
 
     println!("provide the json file to save");
     let path = FileDialog::new()
@@ -135,14 +160,14 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16) -> Vec<chart
     let mut chart_notes = vec![];
 
     let mut notes_state = HashMap::new();
-    notes_state.insert(60, (0, false, 0.));
-    notes_state.insert(61, (1, false, 0.));
-    notes_state.insert(62, (2, false, 0.));
-    notes_state.insert(63, (3, false, 0.));
-    notes_state.insert(72, (4, false, 0.));
-    notes_state.insert(73, (5, false, 0.));
-    notes_state.insert(74, (6, false, 0.));
-    notes_state.insert(75, (7, false, 0.));
+    notes_state.insert(60, (4, false, 0.));
+    notes_state.insert(61, (5, false, 0.));
+    notes_state.insert(62, (6, false, 0.));
+    notes_state.insert(63, (7, false, 0.));
+    notes_state.insert(72, (0, false, 0.));
+    notes_state.insert(73, (1, false, 0.));
+    notes_state.insert(74, (2, false, 0.));
+    notes_state.insert(75, (3, false, 0.));
 
     let mut time = 0.;
 
@@ -168,7 +193,8 @@ fn get_chart_notes(notes_track: &[TrackEvent], ticks_per_beat: u16) -> Vec<chart
             .unwrap_or_else(|| panic!("invalid note {}", note));
         assert_ne!(
             pressed, *was_pressed,
-            "note on must be followed by note off and vice versa for each note"
+            "note on must be followed by note off and vice versa for note {} time {}",
+            note, time
         );
 
         if !pressed {
