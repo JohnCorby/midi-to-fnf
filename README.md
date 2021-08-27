@@ -1,3 +1,7 @@
+# oops
+
+it turns out SNIFF exists which literally does what this is supposed to and a bit more. so rip
+
 # midi-to-fnf
 
 just like nyx's version, this converts midi files into fnf charts.
